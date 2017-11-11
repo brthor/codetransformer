@@ -1,5 +1,12 @@
 from collections import OrderedDict
-from dis import Bytecode, dis, findlinestarts
+
+from dis import dis, findlinestarts
+try:
+    from dis import get_instructions
+except ImportError:
+    from newDis import get_instructions
+
+
 from enum import IntEnum, unique
 from functools import reduce
 from itertools import repeat
@@ -108,7 +115,6 @@ class Flag(IntEnum):
 
     @classmethod
     def pack(cls,
-             *,
              CO_OPTIMIZED,
              CO_NEWLOCALS,
              CO_VARARGS,
@@ -256,8 +262,7 @@ def pycode(argcount,
         cellvars,
     )
 
-
-class Code:
+class Code(object):
     """A higher abstraction over python's CodeType.
 
     See Include/code.h for more information.
@@ -321,14 +326,13 @@ class Code:
     def __init__(self,
                  instrs,
                  argnames=(),
-                 *,
                  cellvars=(),
                  freevars=(),
                  name='<code>',
                  filename='<code>',
                  firstlineno=1,
                  lnotab=None,
-                 flags=None):
+                 flags=None, *_):
 
         instrs = tuple(instrs)  # strictly evaluate any generators.
 
@@ -445,7 +449,7 @@ class Code:
                 Instruction.from_opcode(
                     b.opcode,
                     Instruction._no_arg if b.arg is None else _RawArg(b.arg),
-                ) for b in Bytecode(co)
+                ) for b in get_instructions(co)
             ),
         )
         for idx, instr in enumerate(sparse_instrs):

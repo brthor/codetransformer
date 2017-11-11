@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
-from dis import opname, opmap, hasjabs, hasjrel, HAVE_ARGUMENT, stack_effect
+from dis import opname, opmap, hasjabs, hasjrel, HAVE_ARGUMENT
+
+import six
 from enum import (
     IntEnum,
     unique,
@@ -67,10 +69,10 @@ class InstructionMeta(ABCMeta, matchable):
     _marker = object()  # sentinel
     _type_cache = {}
 
-    def __init__(self, *args, opcode=None):
-        return super().__init__(*args)
+    def __init__(self, opcode=None, *args):
+        super(InstructionMeta, self).__init__(*args)
 
-    def __new__(mcls, name, bases, dict_, *, opcode=None):
+    def __new__(mcls, name, bases, dict_, opcode=None, *_):
         try:
             return mcls._type_cache[opcode]
         except KeyError:
@@ -87,7 +89,7 @@ class InstructionMeta(ABCMeta, matchable):
             dict_['_reprname'] = immutableattr(name)
             for attr in ('absjmp', 'have_arg', 'opcode', 'opname', 'reljmp'):
                 dict_[attr] = _notimplemented(attr)
-            return super().__new__(mcls, name, (object,), dict_)
+            return super(InstructionMeta).__new__(mcls, name, (object,), dict_)
 
         if opcode not in opmap.values():
             raise TypeError('Invalid opcode: {}'.format(opcode))
@@ -110,7 +112,7 @@ class InstructionMeta(ABCMeta, matchable):
 
         dict_['have_arg'] = immutableattr(opcode >= HAVE_ARGUMENT)
 
-        cls = mcls._type_cache[opcode] = super().__new__(
+        cls = mcls._type_cache[opcode] = super(InstructionMeta).__new__(
             mcls, opname[opcode], bases, dict_,
         )
         return cls
@@ -123,7 +125,7 @@ class InstructionMeta(ABCMeta, matchable):
     __str__ = __repr__
 
 
-class Instruction(InstructionMeta._marker, metaclass=InstructionMeta):
+class Instruction(six.with_metaclass(InstructionMeta, InstructionMeta._marker)):
     """
     Base class for all instruction types.
 
@@ -204,36 +206,36 @@ class Instruction(InstructionMeta._marker, metaclass=InstructionMeta):
         """
         return type(cls)(opname[opcode], (cls,), {}, opcode=opcode)(arg)
 
-    @property
-    def stack_effect(self):
-        """
-        The net effect of executing this instruction on the interpreter stack.
-
-        Instructions that pop values off the stack have negative stack effect
-        equal to the number of popped values.
-
-        Instructions that push values onto the stack have positive stack effect
-        equal to the number of popped values.
-
-        Examples
-        --------
-        - LOAD_{FAST,NAME,GLOBAL,DEREF} push one value onto the stack.
-          They have a stack_effect of 1.
-        - POP_JUMP_IF_{TRUE,FALSE} always pop one value off the stack.
-          They have a stack effect of -1.
-        - BINARY_* instructions pop two instructions off the stack, apply a
-          binary operator, and push the resulting value onto the stack.
-          They have a stack effect of -1 (-2 values consumed + 1 value pushed).
-        """
-        if self.opcode == NOP.opcode:  # noqa
-            # dis.stack_effect is broken here
-            return 0
-
-        return stack_effect(
-            self.opcode,
-            *((self.arg if isinstance(self.arg, int) else 0,)
-              if self.have_arg else ())
-        )
+    # @property
+    # def stack_effect(self):
+    #     """
+    #     The net effect of executing this instruction on the interpreter stack.
+    #
+    #     Instructions that pop values off the stack have negative stack effect
+    #     equal to the number of popped values.
+    #
+    #     Instructions that push values onto the stack have positive stack effect
+    #     equal to the number of popped values.
+    #
+    #     Examples
+    #     --------
+    #     - LOAD_{FAST,NAME,GLOBAL,DEREF} push one value onto the stack.
+    #       They have a stack_effect of 1.
+    #     - POP_JUMP_IF_{TRUE,FALSE} always pop one value off the stack.
+    #       They have a stack effect of -1.
+    #     - BINARY_* instructions pop two instructions off the stack, apply a
+    #       binary operator, and push the resulting value onto the stack.
+    #       They have a stack effect of -1 (-2 values consumed + 1 value pushed).
+    #     """
+    #     if self.opcode == NOP.opcode:  # noqa
+    #         # dis.stack_effect is broken here
+    #         return 0
+    #
+    #     return stack_effect(
+    #         self.opcode,
+    #         *((self.arg if isinstance(self.arg, int) else 0,)
+    #           if self.have_arg else ())
+    #     )
 
     def equiv(self, instr):
         """Check equivalence of instructions. This checks against the types
@@ -280,7 +282,7 @@ def _mk_call_init(class_):
     __init__ : callable
         The __init__ method for the class.
     """
-    def __init__(self, packed=no_default, *, positional=0, keyword=0):
+    def __init__(self, packed=no_default, positional=0, keyword=0, *_):
         if packed is no_default:
             arg = int.from_bytes(bytes((positional, keyword)), 'little')
         elif not positional and not keyword:
@@ -347,7 +349,7 @@ class CompareOpMeta(InstructionMeta):
                 self.__class__.__name__, self._name_, self._value_,
             )
 
-    class ComparatorDescr:
+    class ComparatorDescr(object):
         """
         A descriptor on the **metaclass** of COMPARE_OP that constructs new
         instances of COMPARE_OP on attribute access.

@@ -21,13 +21,13 @@ def _prepr(m):
 def coerce_ellipsis(p):
     """Convert ... into a matchany
     """
-    if p is ...:
+    if p is Ellipsis:
         return matchany
 
     return p
 
 
-class matchable:
+class matchable(object):
     """Mixin for defining the operators on patterns.
     """
     def __or__(self, other):
@@ -128,7 +128,7 @@ class option(modifier):
     _token = b'?'
 
 
-class matchrange(immutable, meta, defaults={'m': None}):
+class matchrange(immutable, meta):
     __slots__ = 'matchable', 'n', 'm'
 
     def mcompile(self):
@@ -174,7 +174,7 @@ class seq(immutable, matchable):
 
         if len(matchables) == 1:
             return coerce_ellipsis(matchables[0])
-        return super().__new__(cls)
+        return super(seq).__new__(cls)
 
     def __init__(self, *matchables):
         self.matchables = tuple(map(coerce_ellipsis, matchables))
@@ -258,7 +258,7 @@ class pattern(immutable):
     """
     __slots__ = 'matchable', 'startcodes', '_compiled'
 
-    def __init__(self, *matchables, startcodes=(DEFAULT_STARTCODE,)):
+    def __init__(self, startcodes=(DEFAULT_STARTCODE,), *matchables):
         if not matchables:
             raise TypeError('expected at least one matchable')
         self.matchable = matchable = seq(*matchables)

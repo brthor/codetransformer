@@ -40,14 +40,14 @@ class interpolated_strings(CodeTransformer):
     """
 
     if sys.version_info >= (3, 6):
-        def __init__(self, *, transform_bytes=True, transform_str=False):
+        def __init__(self, transform_bytes=True, transform_str=False, *_):
             raise NotImplementedError(
                 '%s is not supported on 3.6 or newer, just use f-strings' %
                 type(self).__name__,
             )
     else:
-        def __init__(self, *, transform_bytes=True, transform_str=False):
-            super().__init__()
+        def __init__(self, transform_bytes=True, transform_str=False, *_):
+            super(interpolated_strings).__init__()
             self._transform_bytes = transform_bytes
             self._transform_str = transform_str
 
@@ -68,13 +68,16 @@ class interpolated_strings(CodeTransformer):
         const = instr.arg
 
         if isinstance(const, (tuple, frozenset)):
-            yield from self._transform_constant_sequence(const)
+            for item in self._transform_constant_sequence(const):
+                yield item
             return
 
         if isinstance(const, bytes) and self._transform_bytes:
-            yield from self.transform_stringlike(const)
+            for item in self.transform_stringlike(const):
+                yield item
         elif isinstance(const, str) and self._transform_str:
-            yield from self.transform_stringlike(const)
+            for item in self.transform_stringlike(const):
+                yield item
         else:
             yield instr
 
@@ -91,9 +94,11 @@ class interpolated_strings(CodeTransformer):
 
         for const in seq:
             if should_transform(const):
-                yield from self.transform_stringlike(const)
+                for item in self.transform_stringlike(const):
+                    yield item
             elif isinstance(const, (tuple, frozenset)):
-                yield from self._transform_constant_sequence(const)
+                for item in self._transform_constant_sequence(const):
+                    yield item
             else:
                 yield LOAD_CONST(const)
 
@@ -112,9 +117,11 @@ class interpolated_strings(CodeTransformer):
         """
         yield LOAD_CONST(const)
         if isinstance(const, bytes):
-            yield from self.bytes_instrs
+            for item in self.bytes_instrs:
+                yield item
         elif isinstance(const, str):
-            yield from self.str_instrs
+            for item in self.str_instrs:
+                yield item
 
     @property
     def bytes_instrs(self):
@@ -124,7 +131,8 @@ class interpolated_strings(CodeTransformer):
         yield LOAD_ATTR('decode')
         yield LOAD_CONST('utf-8')
         yield CALL_FUNCTION(1)
-        yield from self.str_instrs
+        for item in self.str_instrs:
+            yield item
 
     @property
     def str_instrs(self):

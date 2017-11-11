@@ -6,7 +6,7 @@ Utilities for pretty-printing ASTs and code objects.
 """
 from ast import iter_fields, AST, Name, Num, parse
 import dis
-from functools import partial, singledispatch
+from functools import partial
 from io import StringIO
 from itertools import chain
 from operator import attrgetter

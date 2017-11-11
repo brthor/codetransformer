@@ -1,4 +1,9 @@
-import builtins
+import six
+
+if six.PY3:
+    import builtins
+if six.PY2:
+    import __builtin__ as builtins
 
 from ..core import CodeTransformer
 from ..instructions import (
@@ -96,7 +101,7 @@ class asconstants(CodeTransformer):
     1
     """
     def __init__(self, *builtin_names, **kwargs):
-        super().__init__()
+        super(asconstants).__init__()
         bltins = vars(builtins)
         if not (builtin_names or kwargs):
             self._constnames = bltins.copy()
@@ -104,18 +109,18 @@ class asconstants(CodeTransformer):
             self._constnames = constnames = {}
             for arg in builtin_names:
                 constnames[arg] = bltins[arg]
-            overlap = constnames.keys() & kwargs.keys()
+            overlap = set(constnames.keys()).intersection(set(kwargs.keys()))
             if overlap:
                 raise TypeError('Duplicate keys: {!r}'.format(overlap))
             constnames.update(kwargs)
 
     def transform(self, code, **kwargs):
-        overlap = self._constnames.keys() & set(code.argnames)
+        overlap = set(self._constnames.keys()).intersection(set(code.argnames))
         if overlap:
             raise SyntaxError(
                 'argument names overlap with constant names: %r' % overlap,
             )
-        return super().transform(code, **kwargs)
+        return super(asconstants, self).transform(code, **kwargs)
 
     @pattern(LOAD_NAME | LOAD_GLOBAL | LOAD_DEREF | LOAD_CLASSDEREF)
     def _load_name(self, instr):

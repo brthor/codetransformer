@@ -67,7 +67,7 @@ class pattern_matched_exceptions(CodeTransformer):
     'bar'
     """
     def __init__(self, matcher=match):
-        super().__init__()
+        super(pattern_matched_exceptions).__init__()
         self._matcher = matcher
 
     if sys.version_info < (3, 6):
@@ -111,6 +111,7 @@ class pattern_matched_exceptions(CodeTransformer):
     @pattern(COMPARE_OP)
     def _compare_op(self, instr):
         if instr.equiv(COMPARE_OP.EXCEPTION_MATCH):
-            yield from self._match(instr)
+            for item in self._match(instr):
+                yield item
         else:
             yield instr

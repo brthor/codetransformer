@@ -49,7 +49,7 @@ class overloaded_dicts(CodeTransformer):
     OrderedDict([('a', 1), ('b', 2), ('c', 3)])
     """
     def __init__(self, astype):
-        super().__init__()
+        super(overloaded_dicts, self).__init__()
         self.astype = astype
 
     @pattern(instructions.BUILD_MAP, matchany[var], instructions.MAP_ADD)
@@ -63,7 +63,8 @@ class overloaded_dicts(CodeTransformer):
         yield instructions.STORE_FAST('__map__')
 
         *body, map_add = instrs
-        yield from self.patterndispatcher(body)
+        for item in self.patterndispatcher(body):
+            yield item
         # TOS  = k
         # TOS1 = v
 

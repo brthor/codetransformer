@@ -6,6 +6,7 @@ tmp/**/*
 tmp/*
 *.swp
 *~
+.idea
 #mac autosaving file
 .DS_Store
 *.py[co]
