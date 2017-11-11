@@ -87,7 +87,7 @@ class CodeTransformerMeta(type):
                 )
             )
         ))
-        return super(CodeTransformerMeta).__new__(mcls, name, bases, dict_)
+        return super(CodeTransformerMeta, mcls).__new__(mcls, name, bases, dict_)
 
     def __prepare__(self, bases):
         return OrderedDict()
@@ -212,13 +212,15 @@ class CodeTransformer(six.with_metaclass(CodeTransformerMeta, object)):
         else:
             closure = f.__closure__
 
-        return FunctionType(
+        ret = FunctionType(
             self.transform(Code.from_pycode(f.__code__)).to_pycode(),
             _a_if_not_none(globals_, f.__globals__),
             _a_if_not_none(name, f.__name__),
             _a_if_not_none(defaults, f.__defaults__),
             closure,
         )
+
+        return ret
 
     @instance
     class _context_stack(threading.local):

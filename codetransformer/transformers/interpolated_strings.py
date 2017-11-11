@@ -47,7 +47,7 @@ class interpolated_strings(CodeTransformer):
             )
     else:
         def __init__(self, transform_bytes=True, transform_str=False, *_):
-            super(interpolated_strings).__init__()
+            super(interpolated_strings, self).__init__(self)
             self._transform_bytes = transform_bytes
             self._transform_str = transform_str
 

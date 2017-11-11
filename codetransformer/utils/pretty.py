@@ -14,7 +14,7 @@ import sys
 from types import CodeType
 
 from codetransformer.code import Flag
-
+from codetransformer.utils.singledispatch import singledispatch
 
 INCLUDE_ATTRIBUTES_DEFAULT = False
 INDENT_DEFAULT = '  '
@@ -86,7 +86,9 @@ def pformat_ast(node,
 
             yield with_prefix(type(node).__name__, '(')
             for name, value in fields_attrs:
-                yield from _fmt(value, name + '=', level + 1)
+                for item in _fmt(value, name + '=', level + 1):
+                    yield item
+
             # Put a trailing comma if we're not at the top level.
             yield with_indent(')', ',' if level > 0 else '')
 
@@ -98,9 +100,10 @@ def pformat_ast(node,
                 return
 
             yield with_prefix('[')
-            yield from chain.from_iterable(
+            for item in chain.from_iterable(
                 map(partial(_fmt, prefix='', level=level + 1), node)
-            )
+            ):
+                yield item
             yield with_indent('],')
         else:
             yield with_prefix(repr(node), ',')
@@ -141,9 +144,7 @@ def pprint_ast(node,
             node,
             include_attributes=include_attributes,
             indent=indent
-        ),
-        file=file,
-    )
+        ))
 
 
 def walk_code(co, _prefix=''):
@@ -154,11 +155,12 @@ def walk_code(co, _prefix=''):
     """
     name = _prefix + co.co_name
     yield name, co
-    yield from chain.from_iterable(
+    for item in chain.from_iterable(
         walk_code(c, _prefix=_extend_name(name, co))
         for c in co.co_consts
         if isinstance(c, CodeType)
-    )
+    ):
+        yield item
 
 
 def iter_attributes(node):
@@ -166,7 +168,8 @@ def iter_attributes(node):
     if not attrs:
         return
 
-    yield from zip(attrs, attrgetter(*attrs)(node))
+    for item in zip(attrs, attrgetter(*attrs)(node)):
+        yield item
 
 
 def a(text, mode='exec', indent='  ', file=None):
@@ -215,10 +218,10 @@ def d(obj, mode='exec', file=None):
         file = sys.stdout
 
     for name, co in walk_code(extract_code(obj, compile_mode=mode)):
-        print(name, file=file)
-        print('-' * len(name), file=file)
-        dis.dis(co, file=file)
-        print('', file=file)
+        print(name)
+        print('-' * len(name))
+        dis.dis(co)
+        print('')
 
 
 @singledispatch
@@ -301,4 +304,4 @@ def display(text, mode='exec', file=None):
         ast=ast_section.getvalue(),
         code=code_section.getvalue(),
     )
-    print(rendered, file=file)
+    print(rendered)

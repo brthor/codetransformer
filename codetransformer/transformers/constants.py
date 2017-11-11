@@ -5,13 +5,13 @@ if six.PY3:
 if six.PY2:
     import __builtin__ as builtins
 
-from ..core import CodeTransformer
-from ..instructions import (
-    DELETE_DEREF,
+from codetransformer.core import CodeTransformer
+from codetransformer.instructions import (
+    # DELETE_DEREF,
     DELETE_FAST,
     DELETE_GLOBAL,
     DELETE_NAME,
-    LOAD_CLASSDEREF,
+    # LOAD_CLASSDEREF,
     LOAD_CONST,
     LOAD_DEREF,
     LOAD_GLOBAL,
@@ -21,7 +21,7 @@ from ..instructions import (
     STORE_GLOBAL,
     STORE_NAME,
 )
-from ..patterns import pattern
+from codetransformer.patterns import pattern
 
 
 def _assign_or_del(type_):
@@ -101,7 +101,7 @@ class asconstants(CodeTransformer):
     1
     """
     def __init__(self, *builtin_names, **kwargs):
-        super(asconstants).__init__()
+        super(asconstants, self).__init__()
         bltins = vars(builtins)
         if not (builtin_names or kwargs):
             self._constnames = bltins.copy()
@@ -122,18 +122,20 @@ class asconstants(CodeTransformer):
             )
         return super(asconstants, self).transform(code, **kwargs)
 
-    @pattern(LOAD_NAME | LOAD_GLOBAL | LOAD_DEREF | LOAD_CLASSDEREF)
+    @pattern(LOAD_NAME | LOAD_GLOBAL | LOAD_DEREF )
     def _load_name(self, instr):
         name = instr.arg
         if name not in self._constnames:
             yield instr
             return
 
-        yield LOAD_CONST(self._constnames[name]).steal(instr)
+        ret = LOAD_CONST(self._constnames[name]).steal(instr)
 
-    _store = pattern(
-        STORE_NAME | STORE_GLOBAL | STORE_DEREF | STORE_FAST,
-    )(_assign_or_del('assign to'))
-    _delete = pattern(
-        DELETE_NAME | DELETE_GLOBAL | DELETE_DEREF | DELETE_FAST,
-    )(_assign_or_del('delete'))
+        yield ret
+
+    # _store = pattern(
+    #     STORE_NAME | STORE_GLOBAL | STORE_DEREF | STORE_FAST,
+    # )(_assign_or_del('assign to'))
+    # _delete = pattern(
+    #     DELETE_NAME | DELETE_GLOBAL | DELETE_FAST,
+    # )(_assign_or_del('delete'))

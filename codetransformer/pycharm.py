@@ -1,7 +1,17 @@
+from transformers.constants import asconstants
 
-from newDis import get_instructions
+z = [1, 2, 3]
 
-b = 3
-a = [x for x in get_instructions(lambda: b)]
+def a():
+    return len(z)
 
-print a
+b = asconstants(z=z)(a)
+
+z = [1,3]
+import dis
+print "Natural:"
+dis.dis(a)
+print "\nTransformed:"
+dis.dis(b)
+
+# prints: 2, 3

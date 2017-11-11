@@ -1,6 +1,11 @@
 from collections import OrderedDict
 
 from dis import dis, findlinestarts
+
+import six
+
+from codetransformer.utils.to_bytes import to_bytes
+
 try:
     from dis import get_instructions
 except ImportError:
@@ -17,10 +22,14 @@ from types import CodeType
 from .instructions import (
     Instruction,
     LOAD_CONST,
-    YIELD_FROM,
     YIELD_VALUE,
     _RawArg,
 )
+
+if six.PY3:
+    from .instructions import YIELD_FROM
+
+
 from .utils.functional import scanl, reverse_dict, ffill
 from .utils.immutable import lazyval
 from .utils.instance import instance
@@ -46,6 +55,7 @@ else:
             if instr.have_arg:
                 yield None
                 yield None
+
 
 
 _sparse_args.__doc__ = """\
@@ -104,7 +114,7 @@ class Flag(IntEnum):
     CO_FUTURE_GENERATOR_STOP = 0x80000
 
     @instance
-    class max:
+    class max(object):
         """The largest bitmask that represents a valid flag.
         """
         def __get__(self, instance, owner):
@@ -396,7 +406,7 @@ class Code(object):
                 CO_VARKEYWORDS=kwarg is not None,
                 CO_NESTED=False,
                 CO_GENERATOR=any(
-                    isinstance(instr, (YIELD_VALUE, YIELD_FROM))
+                    (six.PY3 and isinstance(instr, (YIELD_VALUE, YIELD_FROM))) or (six.PY2 and isinstance(instr, (YIELD_VALUE)))
                     for instr in instrs
                 ),
                 CO_NOFREE=not any(map(op.attrgetter('uses_free'), instrs)),
@@ -482,7 +492,7 @@ class Code(object):
         # Here we convert the varnames format into our argnames format.
         paramnames = co.co_varnames[
             :(co.co_argcount +
-              co.co_kwonlyargcount +
+              getattr(co, 'co_kwonlyargcount', 0) +
               has_vargs +
               has_kwargs)
         ]
@@ -493,7 +503,7 @@ class Code(object):
             new_paramnames.append('*' + paramnames[-1 - has_kwargs])
         # Add positional only arguments next.
         new_paramnames.extend(paramnames[
-            co.co_argcount:co.co_argcount + co.co_kwonlyargcount
+            co.co_argcount:co.co_argcount + getattr(co, 'co_kwonlyargcount', 0)
         ])
         # Add **kwargs last.
         if has_kwargs:
@@ -507,9 +517,9 @@ class Code(object):
             name=co.co_name,
             filename=co.co_filename,
             firstlineno=co.co_firstlineno,
-            lnotab={
-                lno: sparse_instrs[off] for off, lno in findlinestarts(co)
-            },
+            # lnotab={
+            #     lno: sparse_instrs[off] for off, lno in findlinestarts(co)
+            # },
             flags=flags,
         )
 
@@ -532,21 +542,21 @@ class Code(object):
             bc.append(instr.opcode)  # Write the opcode byte.
             if isinstance(instr, LOAD_CONST):
                 # Resolve the constant index.
-                bc.extend(consts.index(instr.arg).to_bytes(argsize, 'little'))
+                bc.extend(to_bytes(consts.index(instr.arg), argsize, 'little'))
             elif instr.uses_name:
                 # Resolve the name index.
-                bc.extend(names.index(instr.arg).to_bytes(argsize, 'little'))
+                bc.extend(to_bytes(names.index(instr.arg), argsize, 'little'))
             elif instr.uses_varname:
                 # Resolve the local variable index.
                 bc.extend(
-                    varnames.index(instr.arg).to_bytes(argsize, 'little'),
+                    to_bytes(varnames.index(instr.arg), argsize, 'little'),
                 )
             elif instr.uses_free:
                 # uses_free is really "uses freevars **or** cellvars".
                 try:
                     # look for the name in cellvars
                     bc.extend(
-                        cellvars.index(instr.arg).to_bytes(argsize, 'little'),
+                        to_bytes(cellvars.index(instr.arg), argsize, 'little'),
                     )
                 except ValueError:
                     # fall back to freevars, incrementing the length of
@@ -580,28 +590,47 @@ class Code(object):
                 ).to_bytes(argsize, 'little',))
             elif instr.have_arg:
                 # Write any other arg here.
-                bc.extend(instr.arg.to_bytes(argsize, 'little'))
+                bc.extend(to_bytes(instr.arg, argsize, 'little'))
             elif WORDCODE:
                 # with wordcode, all instructions are padded to 2 bytes
                 bc.append(0)
 
-        return CodeType(
-            self.argcount,
-            self.kwonlyargcount,
-            len(varnames),
-            self.stacksize,
-            self.py_flags,
-            bytes(bc),
-            consts,
-            names,
-            varnames,
-            self.filename,
-            self.name,
-            self.firstlineno,
-            self.py_lnotab,
-            freevars,
-            cellvars,
-        )
+        if six.PY3:
+            return CodeType(
+                self.argcount,
+                self.kwonlyargcount,
+                len(varnames),
+                self.stacksize,
+                self.py_flags,
+                bytes(bc),
+                consts,
+                names,
+                varnames,
+                self.filename,
+                self.name,
+                self.firstlineno,
+                self.py_lnotab,
+                freevars,
+                cellvars,
+            )
+        else:
+            return CodeType(
+                self.argcount,
+                len(varnames),
+                self.stacksize,
+                self.py_flags,
+                bytes(bc),
+                consts,
+                names,
+                varnames,
+                self.filename,
+                self.name,
+                self.firstlineno,
+                self.py_lnotab,
+                freevars,
+                cellvars,
+            )
+
 
     @property
     def instrs(self):

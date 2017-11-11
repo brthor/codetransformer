@@ -4,10 +4,10 @@ from itertools import islice
 import sys
 from textwrap import dedent
 
-from .. import instructions
-from ..core import CodeTransformer
-from ..patterns import pattern,  matchany, var
-from ..utils.instance import instance
+from codetransformer import instructions
+from codetransformer.core import CodeTransformer
+from codetransformer.patterns import pattern,  matchany, var
+from codetransformer.utils.instance import instance
 
 
 IN_COMPREHENSION = 'in_comprehension'
@@ -62,7 +62,7 @@ class overloaded_dicts(CodeTransformer):
 
         yield instructions.STORE_FAST('__map__')
 
-        *body, map_add = instrs
+        body, map_add = instrs[:-1], instrs[-1]
         for item in self.patterndispatcher(body):
             yield item
         # TOS  = k
@@ -99,7 +99,8 @@ class overloaded_dicts(CodeTransformer):
             yield instructions.CALL_FUNCTION(0)
             # TOS  = m = self.astype()
 
-            yield from (instructions.DUP_TOP(),) * instr.arg
+            for item in (instructions.DUP_TOP(),) * instr.arg:
+                yield item
             # TOS  = m
             # ...
             # TOS[instr.arg] = m
@@ -216,12 +217,12 @@ def _format_constant_docstring(type_):
 class _ConstantTransformerBase(CodeTransformer):
 
     def __init__(self, xform):
-        super().__init__()
+        super(_ConstantTransformerBase, self).__init__()
         self.xform = xform
 
     def transform_consts(self, consts):
         # This is all one expression.
-        return super().transform_consts(
+        return super(_ConstantTransformerBase, self).transform_consts(
             tuple(
                 frozenset(self.transform_consts(tuple(const)))
                 if isinstance(const, frozenset)
@@ -311,7 +312,8 @@ decimal_literals = overloaded_floats(Decimal)
 
 def _start_comprehension(self, *instrs):
     self.begin(IN_COMPREHENSION)
-    yield from self.patterndispatcher(instrs)
+    for item in  self.patterndispatcher(instrs):
+        yield item
 
 
 def _return_value(self, instr):
