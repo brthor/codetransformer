@@ -1,6 +1,5 @@
 from collections import OrderedDict
-
-from dis import dis, findlinestarts
+from dis import dis
 
 import six
 
@@ -9,7 +8,7 @@ from codetransformer.utils.to_bytes import to_bytes
 try:
     from dis import get_instructions
 except ImportError:
-    from newDis import get_instructions
+    from codetransformer.utils.disBackport import get_instructions
 
 
 from enum import IntEnum, unique

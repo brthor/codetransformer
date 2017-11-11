@@ -13,8 +13,9 @@ from operator import attrgetter
 import sys
 from types import CodeType
 
+from singledispatch import singledispatch
+
 from codetransformer.code import Flag
-from codetransformer.utils.singledispatch import singledispatch
 
 INCLUDE_ATTRIBUTES_DEFAULT = False
 INDENT_DEFAULT = '  '

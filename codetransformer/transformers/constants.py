@@ -120,6 +120,8 @@ class asconstants(CodeTransformer):
             raise SyntaxError(
                 'argument names overlap with constant names: %r' % overlap,
             )
+
+
         return super(asconstants, self).transform(code, **kwargs)
 
     @pattern(LOAD_NAME | LOAD_GLOBAL | LOAD_DEREF )

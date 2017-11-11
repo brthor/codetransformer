@@ -1,5 +1,5 @@
 from .constants import asconstants
-from .interpolated_strings import interpolated_strings
+# from .interpolated_strings import interpolated_strings
 from .pattern_matched_exceptions import pattern_matched_exceptions
 from .precomputed_slices import precomputed_slices
 from .literals import (

@@ -5,17 +5,17 @@ codetransformer.utils.functional
 Utilities for functional programming.
 """
 
-from toolz import complement, flip
+# from toolz import complement, flip
 
-
-def is_a(type_):
-    """More curryable version of isinstance."""
-    return flip(isinstance, type_)
-
-
-def not_a(type_):
-    """More curryable version of not isinstance."""
-    return complement(is_a(type_))
+#
+# def is_a(type_):
+#     """More curryable version of isinstance."""
+#     return flip(isinstance, type_)
+#
+#
+# def not_a(type_):
+#     """More curryable version of not isinstance."""
+#     return complement(is_a(type_))
 
 
 def scanl(f, n, ns):
