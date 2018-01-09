@@ -561,17 +561,19 @@ class Code(object):
                     # fall back to freevars, incrementing the length of
                     # cellvars.
                     bc.extend(
-                        (freevars.index(instr.arg) + len(cellvars)).to_bytes(
+                        to_bytes(
+                            (freevars.index(instr.arg) + len(cellvars)),
                             argsize,
-                            'little',
+                            'little'
                         )
                     )
             elif instr.absjmp:
                 # Resolve the absolute jump target.
                 bc.extend(
-                    self.bytecode_offset(instr.arg).to_bytes(
+                    to_bytes(
+                        self.bytecode_offset(instr.arg),
                         argsize,
-                        'little',
+                        'little'
                     ),
                 )
             elif instr.reljmp:
@@ -581,12 +583,12 @@ class Code(object):
                 # We then subtract argsize - 1 to account for the bytes the
                 # current instruction takes up.
                 bytecode_offset = self.bytecode_offset
-                bc.extend((
+                bc.extend(to_bytes((
                     bytecode_offset(instr.arg) -
                     bytecode_offset(instr) -
                     argsize -
                     1
-                ).to_bytes(argsize, 'little',))
+                ), argsize, 'little',))
             elif instr.have_arg:
                 # Write any other arg here.
                 bc.extend(to_bytes(instr.arg, argsize, 'little'))
