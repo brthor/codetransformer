@@ -12,11 +12,11 @@ if 'upload' in sys.argv:
 
 
 setup(
-    name='codetransformer',
+    name='codetransformer-py2',
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     description='Python code object transformers',
-    author='Joe Jevnik, Scott Sanderson, Bryan Thornbury',
+    author='Joe Jevnik, Scott Sanderson, and Bryan Thornbury',
     author_email='joejev@gmail.com',
     packages=find_packages(),
     long_description=long_description,
@@ -30,7 +30,7 @@ setup(
         'Operating System :: POSIX',
         'Topic :: Software Development :: Pre-processors',
     ],
-    url='https://github.com/brthor/codetransformer',
+    url='https://github.com/brthor/codetransformer-py2',
     install_requires=['six', 'enum34', 'singledispatch'],
     extras_require={
         'dev': [
