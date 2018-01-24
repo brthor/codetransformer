@@ -5,6 +5,8 @@ from itertools import chain
 from types import CodeType, FunctionType
 from weakref import WeakKeyDictionary
 
+import six
+
 try:
     import threading
 except ImportError:
@@ -55,10 +57,10 @@ class NoContext(Exception):
     attribute was accessed outside of a code context.
     """
     def __init__(self):
-        return super().__init__('no active transformation context')
+        super(NoContext, self).__init__('no active transformation context')
 
 
-class Context:
+class Context(object):
     """Empty object for holding the transformation context.
     """
     def __init__(self, code):
@@ -85,13 +87,13 @@ class CodeTransformerMeta(type):
                 )
             )
         ))
-        return super().__new__(mcls, name, bases, dict_)
+        return super(CodeTransformerMeta, mcls).__new__(mcls, name, bases, dict_)
 
     def __prepare__(self, bases):
         return OrderedDict()
 
 
-class CodeTransformer(metaclass=CodeTransformerMeta):
+class CodeTransformer(six.with_metaclass(CodeTransformerMeta, object)):
     """A code object transformer, similar to the NodeTransformer
     from the ast module.
 
@@ -147,7 +149,7 @@ class CodeTransformer(metaclass=CodeTransformerMeta):
 
     del _id
 
-    def transform(self, code, *, name=None, filename=None):
+    def transform(self, code, name=None, filename=None, *_):
         """Transform a codetransformer.Code object applying the transforms.
 
         Parameters
@@ -203,21 +205,22 @@ class CodeTransformer(metaclass=CodeTransformerMeta):
                 flags=code.flags,
             )
 
-    def __call__(self, f, *,
-                 globals_=None, name=None, defaults=None, closure=None):
+    def __call__(self, f, globals_=None, name=None, defaults=None, closure=None, *_):
         # Callable so that we can use CodeTransformers as decorators.
         if closure is not None:
             closure = tuple(map(_cell_new, closure))
         else:
             closure = f.__closure__
 
-        return FunctionType(
+        ret = FunctionType(
             self.transform(Code.from_pycode(f.__code__)).to_pycode(),
             _a_if_not_none(globals_, f.__globals__),
             _a_if_not_none(name, f.__name__),
             _a_if_not_none(defaults, f.__defaults__),
             closure,
         )
+
+        return ret
 
     @instance
     class _context_stack(threading.local):

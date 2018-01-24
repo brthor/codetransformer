@@ -1,11 +1,9 @@
 import ast
 from collections import deque
-from functools import singledispatch
+from singledispatch import singledispatch
 from itertools import takewhile
 import types
 
-from toolz import complement, compose, curry, sliding_window
-import toolz.curried.operator as op
 
 from . import paramnames
 from ..code import Code

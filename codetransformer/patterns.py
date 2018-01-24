@@ -21,13 +21,13 @@ def _prepr(m):
 def coerce_ellipsis(p):
     """Convert ... into a matchany
     """
-    if p is ...:
+    if p is Ellipsis:
         return matchany
 
     return p
 
 
-class matchable:
+class matchable(object):
     """Mixin for defining the operators on patterns.
     """
     def __or__(self, other):
@@ -128,7 +128,7 @@ class option(modifier):
     _token = b'?'
 
 
-class matchrange(immutable, meta, defaults={'m': None}):
+class matchrange(immutable, meta):
     __slots__ = 'matchable', 'n', 'm'
 
     def mcompile(self):
@@ -174,13 +174,14 @@ class seq(immutable, matchable):
 
         if len(matchables) == 1:
             return coerce_ellipsis(matchables[0])
-        return super().__new__(cls)
+        return super(seq, cls).__new__(cls)
 
     def __init__(self, *matchables):
         self.matchables = tuple(map(coerce_ellipsis, matchables))
 
     def mcompile(self):
-        return b''.join(map(mcompile, self.matchables))
+        ret = r'\s*,\s*'.join(map(mcompile, self.matchables))
+        return ret
 
     def __repr__(self):
         return '{cls}({args})'.format(
@@ -258,7 +259,8 @@ class pattern(immutable):
     """
     __slots__ = 'matchable', 'startcodes', '_compiled'
 
-    def __init__(self, *matchables, startcodes=(DEFAULT_STARTCODE,)):
+    def __init__(self, *matchables, **kwargs):
+        startcodes = kwargs.get('startcodes', (DEFAULT_STARTCODE,))
         if not matchables:
             raise TypeError('expected at least one matchable')
         self.matchable = matchable = seq(*matchables)
@@ -300,7 +302,14 @@ class boundpattern(immutable):
             raise NoMatch(compiled_instrs, startcode)
 
         mend = match.end()
-        return self._f(*instrs[:mend]), mend
+
+        instrsConsumed = 0
+        for c in compiled_instrs[:mend+1]:
+            if c == ',':
+                instrsConsumed += 1
+
+        ret = self._f(*instrs[:instrsConsumed]), instrsConsumed
+        return ret
 
 
 class NoMatch(Exception):
@@ -343,18 +352,27 @@ class boundpatterndispatcher(immutable):
 
     def __call__(self, instrs):
         opcodes = bytes(map(attrgetter('opcode'), instrs))
+        searchable_opcodes = opcodes.replace('[', '').replace(']', '').replace(' ', '')
+
         idx = 0  # The current index into the pre-transformed instrs.
         post_transform = []  # The instrs that have been transformed.
         transformer = self.transformer
         while idx < len(instrs):
             try:
-                processed, nconsumed = self._dispatch(
-                    opcodes[idx:],
+                opSplit = searchable_opcodes.split(',')
+                opIdx = 0
+                for i in range(1, idx + 1):
+                    opIdx += len(opSplit[i-1]) + 1
+
+                ret = self._dispatch(
+                    searchable_opcodes[opIdx:],
                     instrs[idx:],
                     # NOTE: do not remove this attribute access
                     # self._dispatch can mutate the value of the startcode
                     transformer.startcode,
                 )
+
+                processed, nconsumed = ret
             except NoMatch:
                 post_transform.append(instrs[idx])
                 idx += 1

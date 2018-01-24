@@ -1,7 +1,7 @@
 import sys
 
-from ..core import CodeTransformer
-from ..instructions import (
+from codetransformer.core import CodeTransformer
+from codetransformer.instructions import (
     BUILD_TUPLE,
     CALL_FUNCTION,
     COMPARE_OP,
@@ -9,7 +9,7 @@ from ..instructions import (
     POP_TOP,
     ROT_TWO,
 )
-from ..patterns import pattern
+from codetransformer.patterns import pattern
 
 
 def match(match_expr, exc_type, exc_value, exc_traceback):
@@ -67,11 +67,11 @@ class pattern_matched_exceptions(CodeTransformer):
     'bar'
     """
     def __init__(self, matcher=match):
-        super().__init__()
+        super(pattern_matched_exceptions, self).__init__(self)
         self._matcher = matcher
 
     if sys.version_info < (3, 6):
-        from ..instructions import CALL_FUNCTION_VAR
+        from codetransformer.instructions import CALL_FUNCTION_VAR
 
         def _match(self,
                    instr,
@@ -111,6 +111,7 @@ class pattern_matched_exceptions(CodeTransformer):
     @pattern(COMPARE_OP)
     def _compare_op(self, instr):
         if instr.equiv(COMPARE_OP.EXCEPTION_MATCH):
-            yield from self._match(instr)
+            for item in self._match(instr):
+                yield item
         else:
             yield instr

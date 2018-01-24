@@ -1,12 +1,17 @@
-import builtins
+import six
 
-from ..core import CodeTransformer
-from ..instructions import (
-    DELETE_DEREF,
+if six.PY3:
+    import builtins
+if six.PY2:
+    import __builtin__ as builtins
+
+from codetransformer.core import CodeTransformer
+from codetransformer.instructions import (
+    # DELETE_DEREF,
     DELETE_FAST,
     DELETE_GLOBAL,
     DELETE_NAME,
-    LOAD_CLASSDEREF,
+    # LOAD_CLASSDEREF,
     LOAD_CONST,
     LOAD_DEREF,
     LOAD_GLOBAL,
@@ -16,7 +21,7 @@ from ..instructions import (
     STORE_GLOBAL,
     STORE_NAME,
 )
-from ..patterns import pattern
+from codetransformer.patterns import pattern
 
 
 def _assign_or_del(type_):
@@ -96,7 +101,7 @@ class asconstants(CodeTransformer):
     1
     """
     def __init__(self, *builtin_names, **kwargs):
-        super().__init__()
+        super(asconstants, self).__init__()
         bltins = vars(builtins)
         if not (builtin_names or kwargs):
             self._constnames = bltins.copy()
@@ -104,31 +109,35 @@ class asconstants(CodeTransformer):
             self._constnames = constnames = {}
             for arg in builtin_names:
                 constnames[arg] = bltins[arg]
-            overlap = constnames.keys() & kwargs.keys()
+            overlap = set(constnames.keys()).intersection(set(kwargs.keys()))
             if overlap:
                 raise TypeError('Duplicate keys: {!r}'.format(overlap))
             constnames.update(kwargs)
 
     def transform(self, code, **kwargs):
-        overlap = self._constnames.keys() & set(code.argnames)
+        overlap = set(self._constnames.keys()).intersection(set(code.argnames))
         if overlap:
             raise SyntaxError(
                 'argument names overlap with constant names: %r' % overlap,
             )
-        return super().transform(code, **kwargs)
 
-    @pattern(LOAD_NAME | LOAD_GLOBAL | LOAD_DEREF | LOAD_CLASSDEREF)
+
+        return super(asconstants, self).transform(code, **kwargs)
+
+    @pattern(LOAD_NAME | LOAD_GLOBAL | LOAD_DEREF )
     def _load_name(self, instr):
         name = instr.arg
         if name not in self._constnames:
             yield instr
             return
 
-        yield LOAD_CONST(self._constnames[name]).steal(instr)
+        ret = LOAD_CONST(self._constnames[name]).steal(instr)
 
-    _store = pattern(
-        STORE_NAME | STORE_GLOBAL | STORE_DEREF | STORE_FAST,
-    )(_assign_or_del('assign to'))
-    _delete = pattern(
-        DELETE_NAME | DELETE_GLOBAL | DELETE_DEREF | DELETE_FAST,
-    )(_assign_or_del('delete'))
+        yield ret
+
+    # _store = pattern(
+    #     STORE_NAME | STORE_GLOBAL | STORE_DEREF | STORE_FAST,
+    # )(_assign_or_del('assign to'))
+    # _delete = pattern(
+    #     DELETE_NAME | DELETE_GLOBAL | DELETE_FAST,
+    # )(_assign_or_del('delete'))

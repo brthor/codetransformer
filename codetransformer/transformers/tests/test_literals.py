@@ -149,7 +149,7 @@ def test_overloaded_sets():
 
     class invertedset(set):
         def __contains__(self, e):
-            return not super().__contains__(e)
+            return not super(invertedset, self).__contains__(e)
 
     @overloaded_sets(invertedset)
     def containment_with_consts():

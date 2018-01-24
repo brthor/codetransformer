@@ -5,17 +5,17 @@ codetransformer.utils.functional
 Utilities for functional programming.
 """
 
-from toolz import complement, flip
+# from toolz import complement, flip
 
-
-def is_a(type_):
-    """More curryable version of isinstance."""
-    return flip(isinstance, type_)
-
-
-def not_a(type_):
-    """More curryable version of not isinstance."""
-    return complement(is_a(type_))
+#
+# def is_a(type_):
+#     """More curryable version of isinstance."""
+#     return flip(isinstance, type_)
+#
+#
+# def not_a(type_):
+#     """More curryable version of not isinstance."""
+#     return complement(is_a(type_))
 
 
 def scanl(f, n, ns):
@@ -96,7 +96,7 @@ def ffill(iterable):
             yield e
 
 
-def flatten(seq, *, recurse_types=(tuple, list, set, frozenset)):
+def flatten(seq, recurse_types=(tuple, list, set, frozenset), *_):
     """
     Convert a (possibly nested) iterator into a flattened iterator.
 
@@ -116,6 +116,7 @@ def flatten(seq, *, recurse_types=(tuple, list, set, frozenset)):
     """
     for elem in seq:
         if isinstance(elem, recurse_types):
-            yield from flatten(elem)
+            for item in flatten(elem):
+                yield item
         else:
             yield elem

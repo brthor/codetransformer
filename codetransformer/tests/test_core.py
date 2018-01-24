@@ -12,7 +12,7 @@ def test_inherit_patterns():
     class C(CodeTransformer):
         matched = False
 
-        @pattern(...)
+        @pattern(Ellipsis)
         def _(self, instr):
             self.matched = True
             yield instr
@@ -35,13 +35,13 @@ def test_override_patterns():
         matched_super = False
         matched_sub = False
 
-        @pattern(...)
+        @pattern(Ellipsis)
         def _(self, instr):
             self.matched_super = True
             yield instr
 
     class D(C):
-        @pattern(...)
+        @pattern(Ellipsis)
         def _(self, instr):
             self.matched_sub = True
             yield instr
@@ -61,7 +61,7 @@ def test_override_patterns():
 def test_updates_lnotab():
     @instance
     class c(CodeTransformer):
-        @pattern(...)
+        @pattern(Ellipsis)
         def _(self, instr):
             yield type(instr)(instr.arg).steal(instr)
 

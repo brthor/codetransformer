@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
-from dis import opname, opmap, hasjabs, hasjrel, HAVE_ARGUMENT, stack_effect
+from dis import opname, opmap, hasjabs, hasjrel, HAVE_ARGUMENT
+
+import six
 from enum import (
     IntEnum,
     unique,
@@ -10,6 +12,12 @@ from re import escape
 from .patterns import matchable
 from .utils.immutable import immutableattr
 from .utils.no_default import no_default
+from .utils.to_bytes import to_bytes
+
+if six.PY3:
+    from dis import stack_effect
+else:
+    from utils.stackeffect import opcodeStackEffect as stack_effect
 
 
 __all__ = ['Instruction'] + sorted(list(opmap))
@@ -67,10 +75,10 @@ class InstructionMeta(ABCMeta, matchable):
     _marker = object()  # sentinel
     _type_cache = {}
 
-    def __init__(self, *args, opcode=None):
-        return super().__init__(*args)
+    def __init__(self,  *args, **kwargs):
+        ABCMeta.__init__(self, *args)
 
-    def __new__(mcls, name, bases, dict_, *, opcode=None):
+    def __new__(mcls, name, bases, dict_, opcode=None, *_):
         try:
             return mcls._type_cache[opcode]
         except KeyError:
@@ -87,7 +95,7 @@ class InstructionMeta(ABCMeta, matchable):
             dict_['_reprname'] = immutableattr(name)
             for attr in ('absjmp', 'have_arg', 'opcode', 'opname', 'reljmp'):
                 dict_[attr] = _notimplemented(attr)
-            return super().__new__(mcls, name, (object,), dict_)
+            return super(InstructionMeta, mcls).__new__(mcls, name, (object,), dict_)
 
         if opcode not in opmap.values():
             raise TypeError('Invalid opcode: {}'.format(opcode))
@@ -110,20 +118,21 @@ class InstructionMeta(ABCMeta, matchable):
 
         dict_['have_arg'] = immutableattr(opcode >= HAVE_ARGUMENT)
 
-        cls = mcls._type_cache[opcode] = super().__new__(
+        cls = mcls._type_cache[opcode] = super(InstructionMeta, mcls).__new__(
             mcls, opname[opcode], bases, dict_,
         )
         return cls
 
     def mcompile(self):
-        return escape(bytes((self.opcode,)))
+        ret = escape(bytes(self.opcode))
+        return ret
 
     def __repr__(self):
         return self._reprname
     __str__ = __repr__
 
 
-class Instruction(InstructionMeta._marker, metaclass=InstructionMeta):
+class Instruction(six.with_metaclass(InstructionMeta, InstructionMeta._marker)):
     """
     Base class for all instruction types.
 
@@ -229,8 +238,9 @@ class Instruction(InstructionMeta._marker, metaclass=InstructionMeta):
             # dis.stack_effect is broken here
             return 0
 
+        stackEffectArg = six.PY3 and self.opcode or self.opname
         return stack_effect(
-            self.opcode,
+            stackEffectArg,
             *((self.arg if isinstance(self.arg, int) else 0,)
               if self.have_arg else ())
         )
@@ -280,14 +290,14 @@ def _mk_call_init(class_):
     __init__ : callable
         The __init__ method for the class.
     """
-    def __init__(self, packed=no_default, *, positional=0, keyword=0):
+    def __init__(self, packed=no_default, positional=0, keyword=0, *_):
         if packed is no_default:
             arg = int.from_bytes(bytes((positional, keyword)), 'little')
         elif not positional and not keyword:
             arg = packed
         else:
             raise TypeError('cannot specify packed and unpacked arguments')
-        self.positional, self.keyword = arg.to_bytes(2, 'little')
+        self.positional, self.keyword = to_bytes(arg, 2, 'little')
         super(class_, self).__init__(arg)
 
     return __init__
@@ -347,7 +357,7 @@ class CompareOpMeta(InstructionMeta):
                 self.__class__.__name__, self._name_, self._value_,
             )
 
-    class ComparatorDescr:
+    class ComparatorDescr(object):
         """
         A descriptor on the **metaclass** of COMPARE_OP that constructs new
         instances of COMPARE_OP on attribute access.

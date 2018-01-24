@@ -5,14 +5,24 @@ codetransformer.utils.immutable
 Utilities for creating and working with immutable objects.
 """
 
-from collections import ChainMap
-from inspect import getfullargspec
 from itertools import starmap, repeat
 from textwrap import dedent
 from weakref import WeakKeyDictionary
 
+try:
+    from inspect import getfullargspec
+except ImportError:
+    pass
 
-class immutableattr:
+try:
+    from collections import ChainMap
+except ImportError:
+    from .newChainMap import ChainMap
+
+import six
+
+
+class immutableattr(object):
     """An immutable attribute of a class.
 
     Parameters
@@ -27,7 +37,7 @@ class immutableattr:
         return self._attr
 
 
-class lazyval:
+class lazyval(object):
     """A memoizing property.
 
     Parameters
@@ -154,18 +164,19 @@ def _create_init(name, slots, defaults):
     # We are using exec here so that we can later inspect the call signature
     # of the __init__. This makes the positional vs keywords work as intended.
     # This is totally reasonable, no h8 m8!
-    exec(
-        'def __init__(_{name}__self, {args}):    \n    {assign}'.format(
+    execStr = 'def __init__(_{name}__self, {args}):    \n    {assign}'.format(
             name=name,
             args=', '.join(slots),
             assign='\n    '.join(
                 map(
                     '__initialize_slot(_{1}__self, "{0}", {0})'.format,
                     slotnames,
-                    repeat(name),
+                    repeat(name, times=len(slotnames)),
                 ),
             ),
-        ),
+        )
+
+    exec(execStr,
         ns,
     )
     init = ns['__init__']
@@ -190,7 +201,7 @@ def _wrapinit(init):
     """
     try:
         spec = getfullargspec(init)
-    except TypeError:
+    except Exception:
         # we cannot preserve the type signature.
         def __init__(*args, **kwargs):
             self = args[0]
@@ -309,7 +320,7 @@ def __repr__(self):
 class ImmutableMeta(type):
     """A metaclass for creating immutable objects.
     """
-    def __new__(mcls, name, bases, dict_, *, defaults=None):
+    def __new__(mcls, name, bases, dict_, defaults=None, *_):
         if '__slots__' not in dict_:
             raise TypeError('immutable classes must have a __slots__')
         if '__setattr__' in dict_:
@@ -325,7 +336,7 @@ class ImmutableMeta(type):
             )
 
         dict_['__setattr__'] = __setattr__
-        cls = super().__new__(mcls, name, bases, dict_)
+        cls = super(ImmutableMeta, mcls).__new__(mcls, name, bases, dict_)
 
         if cls.__repr__ is object.__repr__:
             # Put a namedtuple-like repr on this class if there is no custom
@@ -334,12 +345,11 @@ class ImmutableMeta(type):
 
         return cls
 
-    def __init__(self, *args, defaults=None):
-        # ignore the defaults kwarg.
-        return super().__init__(*args)
+    def __init__(self, *args, **_):
+        type.__init__(self, *args)
 
 
-class immutable(metaclass=ImmutableMeta):
+class immutable(six.with_metaclass(ImmutableMeta, object)):
     """A base class for immutable objects.
     """
     __slots__ = ()

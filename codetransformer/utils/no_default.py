@@ -1,5 +1,5 @@
 @object.__new__
-class no_default:
+class no_default(object):
     def __new__(cls):
         return no_default
 
